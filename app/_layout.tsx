@@ -17,7 +17,7 @@ const InitialLayout = () => {
           .from('profiles')
           .select('hasCompletedSurvey')
           .eq('id', session.user.id)
-          .single()
+          .maybeSingle()
         
         if (error) {
           console.error('Error checking survey completion:', error)
