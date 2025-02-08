@@ -2,97 +2,39 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import supabase from '@lib/supabase';
-
-const surveyQuestions = [
-  {
-    theme: "Artist Profile",
-    questions: [
-      {
-        id: 1,
-        question: "Which option best describes your style?",
-        options: ["Cartoon drawing", "Line art", "Sketching", "Illustration", "Surrealism", "Abstract", "Doodling", "Digital art", "Pixel drawing", "Realism", "Expressionism", "Minimalist", "Concept art", "Pop art"]
-      },
-      {
-        id: 2,
-        question: "What medium do you prefer?",
-        options: ["Digital", "Pencil", "Ink"]
-      },
-      {
-        id: 3,
-        question: "What themes inspire you most?",
-        options: ["Nature", "Urban", "Fantasy", "Sci-fi", "Abstract", "Portrait", "Still life", "Character design"]
-      }
-    ]
-  },
-  {
-    theme: "Skill Assessment",
-    questions: [
-      {
-        id: 4,
-        question: "How would you rate your artistic experience?",
-        options: ["Beginner", "Intermediate", "Advanced", "Professional"]
-      },
-      {
-        id: 5,
-        question: "How often do you create art?",
-        options: ["Daily", "Weekly", "Monthly", "Occasionally"]
-      },
-      {
-        id: 6,
-        question: "What's your primary goal?",
-        options: ["Hobby", "Professional development", "Building portfolio", "Learning new skills"]
-      }
-    ]
-  },
-  {
-    theme: "Prompt Setup",
-    questions: [
-      {
-        id: 7,
-        question: "How detailed do you prefer prompts to be?",
-        options: ["Simple", "Moderate", "Complex", "Varying"]
-      },
-      {
-        id: 8,
-        question: "What type of prompts interest you?",
-        options: ["Technical exercises", "Creative challenges", "Subject matter", "Style exploration"]
-      },
-      {
-        id: 9,
-        question: "Would you like notifications and when?",
-        options: ["Early morning (7am)", "Late morning (11am)", "early afternoon (2pm)", "Late afternoon (5pm)", "Early evening (7pm)", "Late evening (10pm)"]
-      }
-    ]
-  }
-];
+import { artist_profile, skill_assessment, prompt_setup } from 'constants/surveyData';
 
 const SetupSurvey = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const router = useRouter();
 
-  // Calculate current theme and question
-  const totalQuestions = surveyQuestions.reduce((acc, theme) => acc + theme.questions.length, 0);
-  const getCurrentThemeAndQuestion = () => {
-    let questionCount = 0;
-    for (const theme of surveyQuestions) {
-      if (currentQuestionIndex < questionCount + theme.questions.length) {
-        const questionIndex = currentQuestionIndex - questionCount;
-        return {
-          theme: theme.theme,
-          question: theme.questions[questionIndex]
-        };
-      }
-      questionCount += theme.questions.length;
-    }
-  };
+  // Create a flat array of questions for navigation
+  const categories = [
+    { name: 'Artist Profile', data: artist_profile },
+    { name: 'Skill Assessment', data: skill_assessment },
+    { name: 'Prompt Setup', data: prompt_setup }
+  ];
 
-  const currentThemeAndQuestion = getCurrentThemeAndQuestion();
+  const flatQuestions = categories.reduce((acc, category) => {
+    const categoryQuestions = Object.entries(category.data).map(([nickname, data]) => ({
+      category: category.name,
+      nickname,
+      ...data
+    }));
+    return [...acc, ...categoryQuestions];
+  }, []);
+
+  const totalQuestions = flatQuestions.length;
+  const currentQuestion = flatQuestions[currentQuestionIndex];
 
   const handleAnswer = (answer) => {
     setAnswers(prev => ({
       ...prev,
-      [currentQuestionIndex]: answer
+      [currentQuestion.category]: {
+        ...prev[currentQuestion.category],
+        [currentQuestion.nickname]: answer
+      }
     }));
   };
 
@@ -112,46 +54,60 @@ const SetupSurvey = () => {
 
   const handleSubmitSurvey = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-
     if (!user?.id) return;
 
+    // Transform answers into the correct format for the database
+    const preferences = {
+      id: user.id,
+      artist_profile: answers['Artist Profile'] || {},
+      skill_assessment: answers['Skill Assessment'] || {},
+      prompt_setup: answers['Prompt Setup'] || {}
+    };
+
     const { error } = await supabase
-      .from('profiles')
-      .update({ 
-        hasCompletedSurvey: true,
-      })
-      .eq('id', user.id);
+      .from('user_preferences')
+      .upsert(preferences);
 
     if (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error saving survey preferences:', error);
       return;
     }
+
+    // Update profiles table to mark survey as completed
+    await supabase
+      .from('profiles')
+      .update({ hasCompletedSurvey: true })
+      .eq('id', user.id);
 
     router.replace('/auth/gallery');
   };
 
+  const getCurrentAnswer = () => {
+    return answers[currentQuestion?.category]?.[currentQuestion?.nickname];
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.themeTitle}>{currentThemeAndQuestion?.theme}</Text>
+      <Text style={styles.themeTitle}>{currentQuestion?.category}</Text>
       
       <View style={styles.contentContainer}>
         <Text style={styles.questionText}>
-          {currentThemeAndQuestion?.question.question}
+          {currentQuestion?.question}
         </Text>
 
         <View style={styles.optionsContainer}>
-          {currentThemeAndQuestion?.question.options.map((option) => (
+          {currentQuestion?.options.map((option) => (
             <TouchableOpacity
               key={option}
               onPress={() => handleAnswer(option)}
               style={[
                 styles.optionButton,
-                answers[currentQuestionIndex] === option && styles.optionButtonSelected
+                getCurrentAnswer() === option && styles.optionButtonSelected
               ]}
             >
               <Text style={[
                 styles.optionText,
-                answers[currentQuestionIndex] === option && styles.optionTextSelected
+                getCurrentAnswer() === option && styles.optionTextSelected
               ]}>
                 {option}
               </Text>
@@ -173,11 +129,11 @@ const SetupSurvey = () => {
           
           <TouchableOpacity
             onPress={handleNext}
-            disabled={!answers[currentQuestionIndex]}
+            disabled={!getCurrentAnswer()}
             style={[
               styles.navButton,
               styles.nextButton,
-              !answers[currentQuestionIndex] && styles.navButtonDisabled
+              !getCurrentAnswer() && styles.navButtonDisabled
             ]}
           >
             <Text style={[styles.navButtonText, styles.nextButtonText]}>

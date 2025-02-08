@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, TextInput, KeyboardAvoidingView, Platform, ScrollView  } from 'react-native';
+
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard   } from 'react-native';
 import { Camera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
@@ -17,6 +18,10 @@ const UploadFlow = () => {
 
   const router = useRouter();
   const { promptId, promptText } = useLocalSearchParams();
+
+  const [timeTaken, setTimeTaken] = useState(0);
+  const [rating, setRating] = useState(0);
+  const thoughts = useRef(''); 
 
 
   const takePhoto = async () => {
@@ -85,7 +90,7 @@ const UploadFlow = () => {
         const reviewData = {
           timeTaken: getTimeLabel(timeTaken),
           rating: rating,
-          thoughts: thoughts,
+          thoughts: thoughts.current
         };
         console.log(reviewData);
 
@@ -157,9 +162,8 @@ const UploadFlow = () => {
 
 
 
-  const [timeTaken, setTimeTaken] = useState(0);
-  const [rating, setRating] = useState(0);
-  const [thoughts, setThoughts] = useState('');
+ 
+
 
   const getTimeLabel = (value: number) => {
     if (value < 1) return 'Less than 10 minutes';
@@ -168,67 +172,70 @@ const UploadFlow = () => {
   };
 
   const QuestionnaireScreen = () => (
-    <View style={styles.container_review}>
-     <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        {/* Time Taken */}
-        <Text style={styles.question}>How long did the prompt take?</Text>
-        <Slider
-          style={{ width: 300, height: 40 }}
-          minimumValue={0}
-          maximumValue={2}
-          step={1}
-          value={timeTaken} // Keep the state controlled
-          onValueChange={setTimeTaken} // Functionally update state
-          minimumTrackTintColor="#1E90FF"
-          maximumTrackTintColor="#000000"
-          thumbTintColor="#1E90FF"
-        />
-        <Text>{getTimeLabel(timeTaken)}</Text>
-
-        {/* Rating */}
-        <Text style={styles.question}>How would you rate your result?</Text>
-        <View style={styles.iconContainer}>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <FontAwesome
-              key={i}
-              name="star"
-              size={30}
-              color={i <= rating ? '#FFD700' : '#D3D3D3'}
-              onPress={() => setRating(i)}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container_review}>
+        
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+          style={{ flex: 1 }}
+        >
+          <ScrollView 
+            contentContainerStyle={styles.scrollView} 
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Time Taken */}
+            <Text style={styles.question}>How long did the prompt take?</Text>
+            <Slider
+              style={{ width: 300, height: 40 }}
+              minimumValue={0}
+              maximumValue={2}
+              step={1}
+              value={timeTaken}
+              onValueChange={setTimeTaken}
+              minimumTrackTintColor="#1E90FF"
+              maximumTrackTintColor="#000000"
+              thumbTintColor="#1E90FF"
             />
-          ))}
-        </View>
+            <Text>{getTimeLabel(timeTaken)}</Text>
 
-        {/* Thoughts */}
-        <Text style={styles.question}>Thoughts:</Text>
-        <TextInput
-          style={styles.textArea}
-          multiline
-          maxLength={200}
-          placeholder="What would you do differently?"
-          value={thoughts} // Keep the state controlled
-          onChangeText={setThoughts} // Ensure it updates without resetting
-        />
-        <Text>{200 - thoughts.length} characters left</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
-      <TouchableOpacity 
-        style={styles.submitButton}
-        onPress={() => {
-          // Handle submission here
-          console.log('Submitted:', { timeTaken, rating, thoughts, promptText });
-          uploadImage();
+            {/* Rating */}
+            <Text style={styles.question}>How would you rate your result?</Text>
+            <View style={styles.iconContainer}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <FontAwesome
+                  key={i}
+                  name="star"
+                  size={30}
+                  color={i <= rating ? '#FFD700' : '#D3D3D3'}
+                  onPress={() => setRating(i)}
+                />
+              ))}
+            </View>
 
-        }}
-      >
-        <Text style={styles.buttonText}>Upload and Complete Prompt</Text>
-      </TouchableOpacity>
-    </View>
-  );
+            {/* Thoughts */}
+            <Text style={styles.question}>Thoughts:</Text>
+            <TextInput
+              style={styles.textArea}
+              multiline
+              placeholder="What would you do differently?"
+              defaultValue={thoughts.current}
+              onChangeText={(text) => (thoughts.current = text)}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        <TouchableOpacity 
+          style={styles.submitButton}
+          onPress={() => {
+            console.log('Submitted:', { timeTaken, rating, thoughts: thoughts.current });
+            uploadImage();
+          }}
+        >
+          <Text style={styles.buttonText}>Upload and Complete Prompt</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableWithoutFeedback>
+);
 
   return (
     <View style={styles.mainContainer}>

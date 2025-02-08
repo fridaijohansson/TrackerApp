@@ -1,15 +1,35 @@
+
 import React, { useEffect,useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Alert,TouchableOpacity, StyleSheet, Modal, FlatList, PanResponder  } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Alert,TouchableOpacity, StyleSheet, Modal, FlatList, PanResponder, Settings  } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
+import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
-
-import { GestureHandlerRootView} from 'react-native-gesture-handler';
+import { GestureHandlerRootView, FlingGestureHandler, Directions, State } from 'react-native-gesture-handler';
 
 import  supabase  from '@lib/supabase';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+
+
 //import { AuthContext } from '../context/ctx';
+
+
+const renderStars = (rating) => {
+  const stars = [];
+  for (let i = 0; i < 5; i++) {
+    stars.push(
+      <FontAwesome
+        key={i}
+        name={i < rating ? 'star' : 'star-o'}
+        size={20}
+        color="gold"
+      />
+    );
+  }
+  return <View style={{ flexDirection: 'row' }}>{stars}</View>;
+};
 
 const GalleryScreen = () => {
   const router = useRouter();
@@ -18,10 +38,12 @@ const GalleryScreen = () => {
   const [hasUncompletedPrompt, setHasUncompletedPrompt] = useState(false);
 
   const [prompt, setPrompt] = useState("Click to generate prompt");
-  const [isLoading, setIsLoading] = useState(false); // State to track loading
   const [previousPrompt, setPreviousPrompt] = useState('');
   const [images, setImages] = useState([]);
 
+  const [selectedIndex, setSelectedIndex] = useState(null);
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     checkUncompletedPrompts();
@@ -72,19 +94,47 @@ const GalleryScreen = () => {
 
   const fetchAIResponse = async () => {
     try {
-      const genAI = new GoogleGenerativeAI("AIzaSyC85IpE-EItQ5T_n6me92bhOYVrI8kpSck");
+      const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
       const model = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      if (prompt) {
-        setPreviousPrompt(prompt);
-    }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+  
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
+  
+      const { data: userPreferences, error } = await supabase
+        .from('user_preferences')
+        .select('artist_profile, skill_assessment, prompt_setup')
+        .eq('id', user.id) 
+        .single();
+  
+      if (error) {
+        throw new Error('Error fetching user preferences: ' + error.message);
+      }
+
 
       const promptTemplate = `
-      Generate a **simple short drawing prompt**.
-      
-      Avoid overly elaborate or nonsensical ideas, and focus on prompts that are creative yet practical to execute.
-      The new prompt must be different from this one:` + previousPrompt;
+      Based on the following user profile:
+      Artist Profile:
+      ${Object.entries(userPreferences.artist_profile)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join('\n')}
 
+      Skill Assessment:
+      ${Object.entries(userPreferences.skill_assessment)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join('\n')}
+
+      Preferred Setup:
+      ${Object.entries(userPreferences.prompt_setup)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join('\n')}
+  
+      Generate a **simple short drawing prompt** that matches their preferences and skill level.`;
+      console.log('promptTemplate:', promptTemplate);
 
       const result = await model.generateContent(promptTemplate);
       console.log('AI Response:', result.response.text());
@@ -97,9 +147,11 @@ const GalleryScreen = () => {
 
   // Function to generate a prompt
   const generatePrompt = async () => {
+    setIsGenerating(true);
     if (hasUncompletedPrompt) {
       Alert.alert('Warning', 'Please complete the current prompt before generating a new one');
-      return;
+      setIsGenerating(false);
+      return; 
     }
 
     try {
@@ -108,6 +160,7 @@ const GalleryScreen = () => {
 
       if (!userId) {
         Alert.alert('Error', 'Please login first');
+        setIsGenerating(false);
         return;
       }
 
@@ -134,13 +187,13 @@ const GalleryScreen = () => {
       setCurrentPrompt(data);
       setHasUncompletedPrompt(true);
 
-      setIsLoading(true);
 
     } catch (error) {
       Alert.alert('Error', error.message);
+      setIsGenerating(false);
       // You might want to set a default prompt or show an error message here
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
   
   };
@@ -160,7 +213,6 @@ const GalleryScreen = () => {
             return [];
         }
 
-        //console.log("Fetched Data:", data);
 
         // Sort newest to oldest
         const sortedData = data.sort((a, b) => 
@@ -198,32 +250,8 @@ const GalleryScreen = () => {
 };
 
 
-// const renderImageItem = ({ item }) => {
-//   if (!item) {
-//       return null; // Handle case where item is invalid
-//   }
-//   return (
-//       <Image source={{ uri: item }} style={styles.image} />
-//   );
-// };
-
-// const renderImageItem = ({ item, index }) => {
-//   if (!item || !item.imageUrl) {
-//     console.warn("Skipping invalid image item:", item); // Debugging
-//     return null;
-//   }
-//   return (
-//     <TouchableOpacity onPress={() => setSelectedIndex(index)}>
-//       <Image source={{ uri: item.imageUrl }} style={styles.imageThumbnail} />
-//     </TouchableOpacity>
-//   );
-// };
 
 
-
-
-
-const [selectedIndex, setSelectedIndex] = useState(null);
 
 
 const handleSwipe = (direction) => {
@@ -253,12 +281,6 @@ const renderImageItem = ({ item, index }) => (
 );
 
 
-const config = {
-  velocityThreshold: 0.1, // Reduced from 0.3
-  directionalOffsetThreshold: 50, // Reduced from 80
-  gestureIsClickThreshold: 5
-};
-  
 
 
   const handlePromptClick = (prompt) => {
@@ -271,151 +293,225 @@ const config = {
     } 
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderRelease: (evt, gestureState) => {
-      console.log('Pan responder released:', gestureState.dx);
-      const SWIPE_THRESHOLD = 50;
-      
-      if (gestureState.dx > SWIPE_THRESHOLD) {
-        console.log('Swiped right');
-        handleSwipe('RIGHT');
-      } else if (gestureState.dx < -SWIPE_THRESHOLD) {
-        console.log('Swiped left');
-        handleSwipe('LEFT');
-      }
-    },
-  });
+  // const panResponder = PanResponder.create({
+  //   onStartShouldSetPanResponder: (e, g) => false, // Don't block touches immediately
+  //   onMoveShouldSetPanResponder: (e, g) => {
+  //     // Activate only if horizontal swipe is more significant than vertical movement
+  //     return Math.abs(g.dx) > 10 && Math.abs(g.dy) < 10;
+  //   },
+  //   onPanResponderGrant: () => {
+  //     console.log('GRANTED TO WRAPPER');
+  //   },
+  //   onPanResponderMove: (evt, gestureState) => {
+  //     const SWIPE_THRESHOLD = 50;
+  
+  //     if (gestureState.dx > SWIPE_THRESHOLD) {
+  //       console.log('Swiped right');
+  //       handleSwipe('RIGHT');
+  //     } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+  //       console.log('Swiped left');
+  //       handleSwipe('LEFT');
+  //     }
+  //   },
+  // });
+  
+  
+  
+  
+  // const scrollerPanResponder = PanResponder.create({
+  //   onStartShouldSetPanResponder: () => false, // Let ScrollView handle it
+  //   onMoveShouldSetPanResponder: (e, g) => Math.abs(g.dy) > 10, // Only respond to vertical scrolls
+  //   onPanResponderGrant: () => {
+  //     console.log('GRANTED TO SCROLLER');
+  //   },
+  // });
   
   
 
 
 // Updated return statement
 return (
-  <GestureHandlerRootView style={{ flex: 1 }}>
-    <View style={{ padding: 20, flex: 1 }}>
-      <TouchableOpacity
+    <View style={{ padding: 5, flex: 1 }}>
+      <View style={styles.topSection}>
+      <View style={styles.header}>
+        <Text style={styles.today}>Today</Text>
+        <Pressable
+          onPress={() => handlePromptClick(currentPrompt)}
+          disabled={!currentPrompt}
+          style={[
+            styles.button,
+            { opacity: currentPrompt ? 1 : 0.3 }
+          ]}
+        >
+          <Ionicons name="camera-outline" size={24} color="#fff" />
+        </Pressable>
+      </View>
+
+        <Pressable
         onPress={generatePrompt}
-        style={{
-          backgroundColor: hasUncompletedPrompt ? '#ccc' : '#007AFF',
-          padding: 15,
-          borderRadius: 8,
-          marginBottom: 20,
-        }}
         disabled={hasUncompletedPrompt}
+        style={styles.promptCard}
       >
-        <Text style={{ color: 'white', textAlign: 'center' }}>
-          Generate Prompt
-        </Text>
-      </TouchableOpacity>
-
-      {currentPrompt && (
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 18, textAlign: 'center' }}>
-            {currentPrompt.prompt_text}
-          </Text>
-        </View>
-      )}
-
-      <Pressable
-        onPress={() => handlePromptClick(currentPrompt)}
-        disabled={!currentPrompt}
-        style={{
-          backgroundColor: currentPrompt ? '#007AFF' : '#ccc',
-          padding: 15,
-          borderRadius: 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: 5,
-          height: 50,
-          opacity: currentPrompt ? 1 : 0.5,
-        }}
-      >
-        <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: 'white', textAlign: 'center' }}>Upload Image</Text>
-        </View>
+        {isGenerating ? (
+          <Text style={{ textAlign: 'center' }}>Prompt generating...</Text>
+        ) : hasUncompletedPrompt ? (
+          <Text style={{  textAlign: 'center', fontSize:16, }}>{currentPrompt.prompt_text}</Text>
+        ) : (
+          <Text style={{  textAlign: 'center' }}>Click to generate today's prompt</Text>
+        )}
       </Pressable>
 
+      
+      </View>
       <FlatList
         data={images}
         renderItem={renderImageItem}
         keyExtractor={(item, index) => index.toString()}
         numColumns={3}
-        style={styles.gallery}
-        contentContainerStyle={{
-          paddingHorizontal: 5, 
-          alignSelf: 'center', 
-        }}
+        contentContainerStyle={styles.galleryContent}
+    
       />
 
 <Modal visible={selectedIndex !== null} transparent={true} animationType="fade">
-  <View style={styles.modalContainer}>
-    <View 
-      style={styles.modalCard}
-      {...panResponder.panHandlers}
-    >
-      <View style={styles.modalHeader}>
-        <Text style={styles.dateText}>
-          {selectedIndex !== null ? 
-            new Date(images[selectedIndex]?.created_at).toLocaleDateString() : ''}
-        </Text>
-        <TouchableOpacity 
-          onPress={() => setSelectedIndex(null)} 
-          style={styles.closeButton}
+<GestureHandlerRootView style={{ flex: 1 }}>
+    <View style={styles.modalContainer}>
+      
+      {/* RIGHT SWIPE  */}
+      <FlingGestureHandler
+        direction={Directions.RIGHT}
+        onHandlerStateChange={({ nativeEvent }) => {
+          if (nativeEvent.state === State.END) {
+            console.log('Swiped Right');
+            handleSwipe('RIGHT'); // Move to previous image
+          }
+        }}
+      >
+        {/* LEFT SWIPE */}
+        <FlingGestureHandler
+          direction={Directions.LEFT}
+          onHandlerStateChange={({ nativeEvent }) => {
+            if (nativeEvent.state === State.END) {
+              console.log('Swiped Left');
+              handleSwipe('LEFT'); // Move to next image
+            }
+          }}
         >
-          <Text style={styles.closeText}>✕</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.modalCard}>
+            
+            <View style={styles.modalHeader}>
+              <Text style={styles.dateText}>
+                {selectedIndex !== null ? 
+                  new Date(images[selectedIndex]?.created_at).toLocaleDateString('default', { weekday: 'long',day: 'numeric',month: 'long',year: 'numeric' }) : ''}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setSelectedIndex(null)} 
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+                  
+            <View style={styles.modalImageContainer}>
+              <Image 
+                source={{ uri: selectedIndex !== null ? images[selectedIndex]?.imageUrl : null }} 
+                style={styles.fullImage}
+              />
+            </View>
 
-      <View style={styles.modalImageContainer}>
-        <Image 
-          source={{ uri: selectedIndex !== null ? images[selectedIndex]?.imageUrl : null }} 
-          style={styles.fullImage}
-        />
-      </View>
+            <ScrollView 
+              keyboardShouldPersistTaps="handled"
+              scrollEnabled={true}
+              pointerEvents="auto"
+            >
+              <Text style={styles.promptText}>
+                {selectedIndex !== null ? images[selectedIndex]?.prompt_text : ''}
+              </Text>
 
-      <Text style={styles.promptText}>
-        {selectedIndex !== null ? images[selectedIndex]?.prompt_text : ''}
-      </Text>
+              <Text style={styles.surveyTitle}>Survey Responses:</Text>
 
-      <ScrollView>
-        <Text style={styles.surveyTitle}>Survey Responses:</Text>
-        <Text style={styles.surveyData}>
-          {selectedIndex !== null ? JSON.stringify(images[selectedIndex]?.review, null, 2) : ''}
-        </Text>
-      </ScrollView>
-    </View>
-  </View>
-</Modal>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.label}>Rating: </Text>
+                {renderStars(images[selectedIndex]?.review.rating)}
+              </View>
+
+              <Text style={styles.label}>Thoughts:</Text>
+              <Text style={styles.surveyData}>
+                {images[selectedIndex]?.review.thoughts}
+              </Text>
+
+              <Text style={styles.label}>Time Taken:</Text>
+              <Text style={styles.surveyData}>{images[selectedIndex]?.review.timeTaken}</Text>
+            </ScrollView>
+            
+          </View>
+        </FlingGestureHandler>
+      </FlingGestureHandler>
+
     </View>
   </GestureHandlerRootView>
+</Modal>
+    </View>
 );
 };
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 10,
   },
-  gallery: {
-    // Remove any padding/margin if present
+  today: {
+    flex: 1, 
+    textAlign: 'left',
+    fontSize: 18, 
+    paddingLeft:10,
   },
+  button: {
+    backgroundColor: '#ccc',
+    padding: 2,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+    width: 40,
+  },
+
   thumbnail: {
     width: 100,
     aspectRatio: 1,
-    marginHorizontal: 5, // Add some spacing between columns
-    marginVertical: 5,   // Add some spacing between rows
+    marginHorizontal: 5, 
+    marginVertical: 5,  
+    borderRadius: 5,
+    
   },
-  imageContainer: {
-    flex: 1,
-    alignItems: 'center', // Center horizontally within the column
-  },
-  
+  promptCard: {
+    backgroundColor:'#ccc',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.5 ,
+    height:200,
 
+  },
+  topSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+
+  },
+  galleryContent: {
+    paddingHorizontal: 5,
+    alignSelf: 'center', 
+  },
 
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)', // Dark semi-transparent backdrop
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', 
+   
   },
   modalCard: {
     width: '90%',
@@ -424,8 +520,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
     marginHorizontal: 20,
-    elevation: 5, // Android shadow
-    shadowColor: '#000', // iOS shadow
+    elevation: 5,
+    shadowColor: '#000', 
     shadowOffset: {
       width: 0,
       height: 2,
@@ -469,145 +565,20 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
   },
-  surveyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 10,
-    color: '#444',
+  scrollContainer: {
   },
-  surveyData: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  }
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20, 
+  },
+  surveyContainer: {
+    padding: 15,
+  },
+  surveyTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  surveyData: { fontSize: 16, marginBottom: 10 },
+  label: { fontSize: 16, fontWeight: 'bold' },
 });
-// const styles = StyleSheet.create({
-//   container: {
-//       flex: 1,
-//       padding: 10,
-//       width: '100%',
-//       marginTop: 100,
-//   },
-//   image: {
-//       width: '30%', // Adjust to fill the container
-//       height: 100, // Fixed height
-//       marginBottom: 10,
-//       marginHorizontal: 5,
-//       borderRadius: 5,
-//   },
-
-// imageThumbnail: {
-//     width: Dimensions.get('window').width / 3 - 10,
-//     height: Dimensions.get('window').width / 3 - 10,
-//     margin: 5,
-//     borderRadius: 8,
-// },
-// modalContainer: {
-//     flex: 1,
-//     backgroundColor: 'black',
-//     justifyContent: 'center',
-// },
-// closeButton: {
-//     position: 'absolute',
-//     top: 40,
-//     right: 20,
-//     zIndex: 1,
-// },
-// closeText: {
-//     color: 'white',
-//     fontSize: 24,
-//     fontWeight: 'bold',
-// },
-// fullImage: {
-//     width: '100%',
-//     height: '60%',
-//     resizeMode: 'contain',
-// },
-// detailsContainer: {
-//     flex: 1,
-//     backgroundColor: 'white',
-//     padding: 20,
-//     borderTopLeftRadius: 20,
-//     borderTopRightRadius: 20,
-// },
-// promptText: {
-//     fontSize: 20,
-//     fontWeight: 'bold',
-// },
-// dateText: {
-//     color: 'gray',
-//     marginVertical: 5,
-// },
-// surveyTitle: {
-//     marginTop: 10,
-//     fontSize: 16,
-//     fontWeight: 'bold',
-// },
-// surveyData: {
-//     marginTop: 5,
-//     fontSize: 14,
-//     color: '#555',
-// },
-// });
 
 
 export default GalleryScreen;
 
-
-
-{/* <View style={styles.container}>
-            <FlatList
-                data={images}
-                renderItem={renderImageItem}
-                keyExtractor={(item, index) => index.toString()} // Use index as key, or better, use a unique ID
-                numColumns={3}
-            />
-        </View> */}
-
-
-
-//         <GestureHandlerRootView style={styles.container}>
-//         {/* Gallery Grid */}
-//         <FlatList
-//           data={images}
-//           renderItem={renderImageItem}
-//           keyExtractor={(item, index) => index.toString()}
-//           numColumns={3}
-//         />
-
-
-//         {/* Fullscreen Modal */}
-//         <Modal visible={selectedIndex !== null} transparent={true} animationType="slide">
-//           {selectedIndex !== null && (
-//               <PanGestureHandler
-//                   onGestureEvent={(event) => {
-//                       if (event.nativeEvent.translationX > 100) handleSwipe(-1); // Swipe Right
-//                       if (event.nativeEvent.translationX < -100) handleSwipe(1); // Swipe Left
-//                   }}
-//               >
-//                   <View style={styles.modalContainer}>
-//                       <TouchableOpacity 
-//                         onPress={() => setSelectedIndex(null)} 
-//                         style={styles.closeButton}
-//                     >
-//                         <Text style={styles.closeText}>✕</Text>
-//                     </TouchableOpacity>
-
-
-//                       <Image source={{ uri: images[selectedIndex]?.imageUrl }} style={styles.fullImage} />
-
-//                       {/* Image Details & Survey */}
-//                       <ScrollView style={styles.detailsContainer}>
-//                           <Text style={styles.promptText}>{images[selectedIndex]?.prompt_text}</Text>
-//                           <Text style={styles.dateText}>Uploaded on: {images[selectedIndex]?.created_at}</Text>
-
-//                           {/* Survey Data */}
-//                           <Text style={styles.surveyTitle}>Survey Responses:</Text>
-//                           <Text style={styles.surveyData}>{JSON.stringify(images[selectedIndex]?.review, null, 2)}</Text>
-//                       </ScrollView>
-//                   </View>
-//               </PanGestureHandler>
-//           )}
-// </Modal>
-//     </GestureHandlerRootView>
