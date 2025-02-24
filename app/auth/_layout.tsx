@@ -27,16 +27,16 @@ const StackLayout = () => {
   }
 
   const hiddenSettingsPaths = [
-    '/auth/setupSurvey',
-    '/auth/upload'
+    '/auth/setupScreen/',
+    '/auth/uploadScreen/'
   ];
 
   const viewTitles: {[key: string]: string} = {
-    '/auth/gallery': 'Gallery',
+    '/auth/galleryScreen': 'Gallery',
     '/auth/settings/survey': 'Settings', 
     '/auth/settings/account': 'Settings',
-    '/auth/upload': 'Upload',
-    '/auth/setupSurvey': 'Setup Survey'
+    '/auth/uploadScreen/': 'Upload',
+    '/auth/setupScreen/': 'Setup Survey'
   };
 
 
@@ -47,7 +47,7 @@ const StackLayout = () => {
       case '/auth/settings/survey':
         return (
           <TouchableOpacity 
-            onPress={() => router.push('/auth/gallery')} 
+            onPress={() => router.push('/auth/galleryScreen')} 
             style={styles.actionButton}
           >
             <Ionicons name="home-outline" size={24} color="#fff" />
@@ -56,22 +56,22 @@ const StackLayout = () => {
         case '/auth/settings/account':
         return (
           <TouchableOpacity 
-            onPress={() => router.push('/auth/gallery')} 
+            onPress={() => router.push('/auth/galleryScreen')} 
             style={styles.actionButton}
           >
             <Ionicons name="home-outline" size={24} color="#fff" />
           </TouchableOpacity>
         );
-        case '/auth/upload':
+        case '/auth/uploadScreen/':
         return (
           <TouchableOpacity 
-            onPress={() => router.push('/auth/gallery')} 
+            onPress={() => router.push('/auth/galleryScreen')} 
             style={styles.actionButton}
           >
             <Ionicons name="home-outline" size={24} color="#fff" />
           </TouchableOpacity>
         );
-      case '/auth/gallery':
+      case '/auth/galleryScreen':
         return (
           <TouchableOpacity 
             onPress={() => router.push('/auth/settings/survey')} 

@@ -37,13 +37,13 @@ const InitialLayout = () => {
     if (!initialized || hasCompletedSurvey === null) return
 
     const inAuthGroup = segments[0] === 'auth'
-    const isSetupSurvey = segments[1] === 'setupSurvey'
+    const isSetupSurvey = segments[1] === 'setupScreen'
     
     if (session) {
       if (!hasCompletedSurvey && !isSetupSurvey) {
-        router.replace('/auth/setupSurvey')
+        router.replace('/auth/setupScreen/' as any)
       } else if (!inAuthGroup && !isSetupSurvey) {
-        router.replace('/auth/gallery')
+        router.replace('/auth/galleryScreen/' as any)
       }
     } else if (!session && !isSetupSurvey) {
       router.replace('/')
