@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { artist_profile, skill_assessment, prompt_setup } from '../../../constants/surveyData';
+import { artist_profile, skill_assessment, prompt_setup, notifications_setup } from '../../../constants/surveyData';
 import QuestionScreen from './QuestionScreen';
 import ProgressIndicator from './ProgressIndicator';
 import { handleSubmitSurvey } from '../../../lib/SurveyHandler';
@@ -10,7 +10,8 @@ import styles from './styles';
 const categories = [
   { name: 'Artist Profile', data: artist_profile },
   { name: 'Skill Assessment', data: skill_assessment },
-  { name: 'Prompt Setup', data: prompt_setup }
+  { name: 'Prompt Setup', data: prompt_setup },
+  { name: 'Notifications Setup', data: notifications_setup },
 ];
 
 const SetupSurvey = () => {

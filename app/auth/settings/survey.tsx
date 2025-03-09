@@ -4,12 +4,13 @@ import supabase  from '@lib/supabase'; // Adjust path as needed
 import { MaterialIcons } from '@expo/vector-icons';
 import * as SurveyQuestions from '../../../constants/surveyData';
 import { Modal } from 'react-native';
-type CategoryKeys = 'artist_profile' | 'skill_assessment' | 'prompt_setup';
+type CategoryKeys = 'artist_profile' | 'skill_assessment' | 'prompt_setup' | 'notifications_setup';
 
 interface UserPreferences {
   artist_profile: Record<string, string>;
   skill_assessment: Record<string, string>;
   prompt_setup: Record<string, string>;
+  notifications_setup: Record<string, string>;
 }
 
 interface SelectedOption {
@@ -43,7 +44,7 @@ const SurveySettings = () => {
 
       const { data, error } = await supabase
         .from('user_preferences')
-        .select('artist_profile, skill_assessment, prompt_setup')
+        .select('artist_profile, skill_assessment, prompt_setup, notifications_setup')
         .eq('id', user.id)
         .single();
 

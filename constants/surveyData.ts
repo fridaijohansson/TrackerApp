@@ -1,13 +1,13 @@
 
-// surveyQuestions.ts
+
 
 export const artist_profile = {
   art_medium: {
-    question: "What mediums do you prefer to use?",
+    question: "What medium do you prefer to use?",
     options: ["Digital", "Pencil (standard)", "Pencil (colour)", "Ink (standard)", "Ink (colour)"]
   },
   art_style: {
-    question: "Which options best describes your style?",
+    question: "Which option best describes your style?",
     options: [
       "Cartoon drawing",
       "Line art",
@@ -20,26 +20,26 @@ export const artist_profile = {
       "Semi-Realism",
       "Expressionism",
       "Minimalist",
-      "Concept art",
+      "Concept art"
     ]
   },
   
-  art_inspiration: {
-    question: "What themes inspire you most?",
-    options: [
-      "Nature",
-      "Fantasy",
-      "Sci-fi",
-      "Abstract",
-      "Portrait",
-      "Still life",
-      "Character design",
-      "Architecture",
-      "Cityscape",
-      "Any type of Illustrations"
-      
-    ]
-  }
+  // art_inspiration: {
+  //   question: "What themes inspire you most?",
+  //   options: [
+  //     "Sci-fi/Technology",
+  //     "Pop culture",
+  //     "Mythology",
+  //     "Character design",
+  //     "Nature",
+  //     "Urban life and cityscapes",
+  //     "Comics and graphic novels",
+  //     "Horror",
+  //     "Emotion and human experience",
+  //     "Fantasy",
+  //     "Conceptual Art"
+  //   ]
+  // }
 };
 
 export const skill_assessment = {
@@ -51,10 +51,10 @@ export const skill_assessment = {
 
 export const prompt_setup = {
   prompt_type: {
-    question: "What type of prompts interest you?",
+    question: "What type of prompt interest you?",
     options: [
-      "Art class type technical exercises (Technical Mode)",
-      "Random descriptions of ideas/scenes (Creative Mode)",
+      "Art class type technical exercises [Technical Mode]",
+      "Random descriptions of ideas/scenes [Creative Mode]",
     ]
   },
   prompt_complexity: {
@@ -69,7 +69,6 @@ export const prompt_setup = {
       "Drawings (~1 Hour)",
     ]
   }
-  
   
 };
 
@@ -92,5 +91,7 @@ export const notifications_setup = {
 export const allCategories = {
   artist_profile,
   skill_assessment,
-  prompt_setup
+  prompt_setup,
+  notifications_setup
 };
+

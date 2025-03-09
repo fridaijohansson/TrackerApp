@@ -36,14 +36,15 @@ export const uploadImage = async (selectedImage, promptId, timeTaken, rating, th
     }).eq('id', promptId);
 
     await updateStreaks(userId);
-    router.push('/auth/gallery');
+    router.push('/auth/galleryScreen/');
   } catch (error) {
     console.error('Upload failed:', error.message);
   }
 };
 
 const getTimeLabel = (value) => {
-  if (value < 1) return 'Less than 10 minutes';
-  if (value < 2) return 'Less than an hour';
-  return 'More than an hour';
+  if (value < 1) return 'Gesture Sketch (~10 mins)';
+  if (value < 2) return 'Refined Sketch (~30 mins)';
+  if (value < 3) return 'Simple Drawing (~1 hr)';
+  return 'Polished Drawing (> 1 hr)';
 };

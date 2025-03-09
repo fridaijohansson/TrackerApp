@@ -53,15 +53,21 @@ const MonthSection: React.FC<{ monthGroup: MonthGroup, onImagePress: (image: Ima
   <View style={styles.monthSection}>
     <Text style={styles.monthHeader}>{monthGroup.month}</Text>
     <View style={styles.imageGrid}>
-      {monthGroup.images.map((image, index) => (
-        <ImageItem
-          key={image.id}
-          item={image}
-          index={index}
-          onPress={() => onImagePress(image)}
-          getSignedUrl={getSignedUrl}
-        />
-      ))}
+      {monthGroup.images.length > 0 ? (
+        monthGroup.images.map((image, index) => (
+          <ImageItem
+            key={image.id}
+            item={image}
+            index={index}
+            onPress={() => onImagePress(image)}
+            getSignedUrl={getSignedUrl}
+          />
+        ))
+      ) : (
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyStateText}>No uploads yet</Text>
+        </View>
+      )}
     </View>
   </View>
 );
@@ -73,30 +79,36 @@ const YearSection: React.FC<{ yearGroup: YearGroup, onImagePress: (image: ImageD
 }) => (
   <View style={styles.yearSection}>
     <Text style={styles.yearHeader}>{yearGroup.year}</Text>
-    {yearGroup.months.map((monthGroup) => (
-      <MonthSection
-        key={monthGroup.month}
-        monthGroup={monthGroup}
-        onImagePress={onImagePress}
-        getSignedUrl={getSignedUrl}
-      />
-    ))}
+    {yearGroup.months.length > 0 ? (
+      yearGroup.months.map((monthGroup) => (
+        <MonthSection
+          key={monthGroup.month}
+          monthGroup={monthGroup}
+          onImagePress={onImagePress}
+          getSignedUrl={getSignedUrl}
+        />
+      ))
+    ) : (
+      <View style={styles.emptyStateContainer}>
+        <Text style={styles.emptyStateText}>No uploads this year</Text>
+      </View>
+    )}
   </View>
 );
 
-const renderStars = (rating) => {
-  const stars = [];
+const renderRating = (rating) => {
+  const ratings = [];
   for (let i = 0; i < 5; i++) {
-    stars.push(
+    ratings.push(
       <FontAwesome
         key={i}
-        name={i < rating ? 'star' : 'star-o'}
+        name={i < rating ? 'heart' : 'heart-o'}
         size={20}
         color="gold"
       />
     );
   }
-  return <View style={{ flexDirection: 'row' }}>{stars}</View>;
+  return <View style={{ flexDirection: 'row' }}>{ratings}</View>;
 };
 
 const GalleryScreen = () => {
@@ -117,6 +129,22 @@ const GalleryScreen = () => {
 
 
   const organizeImagesByDate = (images: ImageData[]): YearGroup[] => {
+    // If no images yet
+    if (images.length === 0) {
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear().toString();
+      const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+      
+      return [{
+        year: currentYear,
+        months: [{
+          month: currentMonth,
+          images: []
+        }]
+      }];
+    }
+  
+    // Regular organization logic
     const grouped = images.reduce((acc, image) => {
       const date = new Date(image.created_at);
       const year = date.getFullYear().toString();
@@ -307,14 +335,11 @@ const checkUncompletedPrompts = async () => {
       const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GEMINI_API_KEY);
       const model = await genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-  
+      const {data: { user }} = await supabase.auth.getUser();
       if (!user) {
         throw new Error('No authenticated user found');
       }
-  
+
       const { data: userPreferences, error } = await supabase
         .from('user_preferences')
         .select('artist_profile, skill_assessment, prompt_setup')
@@ -325,8 +350,7 @@ const checkUncompletedPrompts = async () => {
         throw new Error('Error fetching user preferences: ' + error.message);
       }
 
-
-      const promptTemplate = `
+      const prompt = `
       Based on the following user profile:
       Artist Profile:
       ${Object.entries(userPreferences.artist_profile)
@@ -338,17 +362,18 @@ const checkUncompletedPrompts = async () => {
         .map(([key, value]) => `- ${key}: ${value}`)
         .join('\n')}
 
-      Preferred Setup:
+      Drawing Prompt Setup:
       ${Object.entries(userPreferences.prompt_setup)
         .map(([key, value]) => `- ${key}: ${value}`)
         .join('\n')}
   
       Generate a **short** drawing prompt that matches their preferences and skill level.`;
-      console.log('promptTemplate:', promptTemplate);
+      console.log('Prompt:', prompt);
 
-      const result = await model.generateContent(promptTemplate);
+      const result = await model.generateContent(prompt);
       console.log('AI Response:', result.response.text());
       return result.response.text();
+
     } catch (error) {
       console.error('Error with Google Generative AI:', error);
       throw error;
@@ -588,18 +613,19 @@ return (
 
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={styles.label}>Rating: </Text>
-                        {renderStars(images[selectedIndex]?.review.rating)}
+                        {renderRating(images[selectedIndex]?.review.rating)}
                       </View>
+                      <Text style={styles.label}>Time Taken:</Text>
+                      <Text style={styles.surveyData}>
+                        {images[selectedIndex]?.review.timeTaken}
+                      </Text>
 
                       <Text style={styles.label}>Thoughts:</Text>
                       <Text style={styles.surveyData}>
                         {images[selectedIndex]?.review.thoughts}
                       </Text>
 
-                      <Text style={styles.label}>Time Taken:</Text>
-                      <Text style={styles.surveyData}>
-                        {images[selectedIndex]?.review.timeTaken}
-                      </Text>
+                      
                     </ScrollView>
                   </>
                 )

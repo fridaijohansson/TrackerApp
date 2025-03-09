@@ -8,7 +8,8 @@ export const handleSubmitSurvey = async (answers, router) => {
     id: user.id,
     artist_profile: answers['Artist Profile'] || {},
     skill_assessment: answers['Skill Assessment'] || {},
-    prompt_setup: answers['Prompt Setup'] || {}
+    prompt_setup: answers['Prompt Setup'] || {},
+    notifications_setup: answers['Notifications Setup'] || {}
   };
 
   const { error } = await supabase.from('user_preferences').upsert(preferences);
@@ -17,6 +18,6 @@ export const handleSubmitSurvey = async (answers, router) => {
     return;
   }
 
-  await supabase.from('profiles').update({ hasCompletedSurvey: true }).eq('id', user.id);
-  router.replace('/auth/gallery');
+  await supabase.from('profiles').update({ has_completed_survey: true }).eq('id', user.id);
+  router.replace('/auth/galleryScreen/');
 };

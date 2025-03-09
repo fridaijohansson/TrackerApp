@@ -62,7 +62,7 @@ const StackLayout = () => {
             <Ionicons name="home-outline" size={24} color="#fff" />
           </TouchableOpacity>
         );
-        case '/auth/uploadScreen/':
+        case '/auth/uploadScreen':
         return (
           <TouchableOpacity 
             onPress={() => router.push('/auth/galleryScreen')} 

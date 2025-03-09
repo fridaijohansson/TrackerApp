@@ -43,6 +43,11 @@ const styles = StyleSheet.create({
       justifyContent: 'center',
       opacity: 0.5 ,
       height:200,
+      shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   
     },
     topSection: {
@@ -169,7 +174,22 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       marginTop: 20,
       width: '100%'
-    }
+    },
+
+    emptyStateContainer: {
+      padding: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f8f8f8',
+      borderRadius: 8,
+      marginVertical: 5,
+      width: '100%',
+    },
+    emptyStateText: {
+      fontSize: 14,
+      color: '#888',
+      fontStyle: 'italic',
+    },
   });
   
   
